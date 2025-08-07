@@ -75,9 +75,9 @@ db.serialize(() => {
   
   // 기본 태그 데이터 삽입
   const defaultTags = [
-    { name: 'Movie', color: '#dc3545' },
-    { name: 'TV Show', color: '#28a745' },
-    { name: 'Documentary', color: '#ffc107' },
+    { name: 'KOREA', color: '#dc3545' },
+    { name: 'JAPAN', color: '#28a745' },
+    { name: 'WESTERN', color: '#ffc107' },
     { name: 'Animation', color: '#6f42c1' },
     { name: 'Comedy', color: '#fd7e14' },
     { name: 'Drama', color: '#20c997' },

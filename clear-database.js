@@ -34,7 +34,7 @@ async function clearDatabase() {
           }
         });
         
-        db.run('DELETE FROM tags WHERE name NOT IN ("Movie", "TV Show", "Documentary", "Animation", "Comedy", "Drama", "Action", "Horror")', (err) => {
+        db.run('DELETE FROM tags WHERE name NOT IN ("KOREA", "JAPAN", "WESTERN", "Animation", "Comedy", "Drama", "Action", "Horror")', (err) => {
           if (err) {
             console.error('❌ Error clearing custom tags:', err);
             reject(err);
