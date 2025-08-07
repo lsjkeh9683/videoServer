@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Server - Phase 1 MVP</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1>VideoFlix</h1>
+                <div class="header-controls">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Search videos...">
+                        <button id="searchBtn">🔍</button>
+                    </div>
+                    <button id="uploadBtn" class="btn btn-primary">Upload</button>
+                    <button id="scanBtn" class="btn btn-secondary">Scan</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 태그 필터 -->
+        <div class="filter-section">
+            <div class="filter-header">
+                <h3>Filters</h3>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <small style="color: #aaa; font-size: 12px;">💡 Click multiple tags to combine filters</small>
+                    <button id="newTagBtn" class="btn btn-small">New Tag</button>
+                </div>
+            </div>
+            <div id="tagList" class="tag-list">
+                <!-- 태그들이 여기에 동적으로 추가됩니다 -->
+            </div>
+        </div>
+
+        <!-- 비디오 그리드 -->
+        <main class="main-content">
+            <div class="content-header">
+                <h2 id="videosTitle">All Videos</h2>
+                <div class="view-controls">
+                    <button id="gridViewBtn" class="view-btn active">Grid</button>
+                    <button id="listViewBtn" class="view-btn">List</button>
+                </div>
+            </div>
+            
+            <div id="loadingSpinner" class="loading">
+                <div class="spinner"></div>
+                <p>Loading videos...</p>
+            </div>
+            
+            <div id="videoGrid" class="video-grid">
+                <!-- 비디오 카드들이 여기에 동적으로 추가됩니다 -->
+            </div>
+            
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <h3>No videos found</h3>
+                <p>Upload some videos or scan a directory to get started!</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- 모달들 -->
+    
+    <!-- 업로드 모달 -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📤 Upload Video</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- 단계 표시기 -->
+                <div class="upload-step-indicator">
+                    <div class="step active" id="step1">1. Select File</div>
+                    <div class="step" id="step2">2. Add Tags</div>
+                    <div class="step" id="step3">3. Choose Thumbnail</div>
+                    <div class="step" id="step4">4. Upload</div>
+                </div>
+                
+                <!-- 파일 선택 단계 (Step 1) -->
+                <div id="uploadStep1" class="upload-step">
+                    <div class="upload-area" id="uploadArea">
+                        <input type="file" id="fileInput" accept="video/*" style="display: none;">
+                        <div class="upload-placeholder">
+                            <div class="upload-icon">📁</div>
+                            <h3>Drop video files here</h3>
+                            <p>or click to browse</p>
+                            <p class="upload-formats">Supported: MP4, MKV, AVI, MOV, WMV, FLV, WebM</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 선택된 파일 표시 및 다음 단계 버튼 -->
+                    <div id="selectedFileInfo" style="display: none; margin-top: 20px;">
+                        <div class="selected-file">
+                            <div class="file-icon">🎬</div>
+                            <div class="file-info">
+                                <h3 id="selectedFileName">filename.mp4</h3>
+                                <p id="selectedFileSize">Size: 0 MB</p>
+                            </div>
+                        </div>
+                        <div class="step-actions" style="margin-top: 20px; text-align: right;">
+                            <button id="proceedToTagsBtn" class="btn btn-primary">Next: Add Tags →</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 태그 추가 단계 (Step 2) -->
+                <div id="uploadStep2" class="upload-step" style="display: none;">
+                    <div class="upload-tags-section">
+                        <label for="uploadTags">Tags for this video:</label>
+                        <div class="upload-tags-container" id="uploadTagsContainer">
+                            <!-- 태그들이 여기에 동적으로 추가됩니다 -->
+                        </div>
+                        <div class="add-upload-tag-form">
+                            <input type="text" id="newUploadTagInput" placeholder="Add tag...">
+                            <button type="button" id="addUploadTagBtn" class="btn btn-small">Add</button>
+                        </div>
+                    </div>
+                    <div class="step-actions" style="margin-top: 20px; text-align: right;">
+                        <button id="backToFileBtn" class="btn btn-secondary">← Back</button>
+                        <button id="proceedToThumbnailBtn" class="btn btn-primary">Next: Choose Thumbnail →</button>
+                    </div>
+                </div>
+                
+                <!-- 썸네일 선택 단계 (Step 3) -->
+                <div id="uploadStep3" class="upload-step" style="display: none;">
+                    <div class="upload-thumbnail-section">
+                        <h3>Choose Thumbnail</h3>
+                        <div id="uploadThumbnailLoadingSpinner" class="loading" style="display: none;">
+                            <div class="spinner"></div>
+                            <p>Generating thumbnail options...</p>
+                        </div>
+                        
+                        <div id="uploadThumbnailGrid" class="thumbnail-grid" style="display: none;">
+                            <!-- 썸네일 옵션들이 여기에 동적으로 추가됩니다 -->
+                        </div>
+                        
+                        <!-- 썸네일 옵션 생성 실패 시 표시 -->
+                        <div id="thumbnailFallback" style="display: none;">
+                            <p style="color: #ffa500; text-align: center; margin: 20px 0;">
+                                ⚠️ Thumbnail options could not be generated. A default thumbnail will be used.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="step-actions" style="margin-top: 20px; text-align: right;">
+                        <button id="backToTagsBtn" class="btn btn-secondary">← Back</button>
+                        <button id="proceedToFinalBtn" class="btn btn-primary">Next: Upload →</button>
+                    </div>
+                </div>
+
+                <!-- 최종 업로드 단계 (Step 4) -->
+                <div id="uploadStep4" class="upload-step" style="display: none;">
+                    <div class="upload-final-section">
+                        <div class="upload-summary">
+                            <h3>Ready to Upload</h3>
+                            <div id="uploadSummaryContent">
+                                <!-- 업로드 요약 정보가 여기에 표시됩니다 -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-actions" style="margin-top: 20px; text-align: right;">
+                        <button id="backToThumbnailBtn" class="btn btn-secondary">← Back</button>
+                        <button id="finalUploadBtn" class="btn btn-primary">💾 Save & Upload</button>
+                    </div>
+                </div>
+                
+                <div id="uploadProgress" class="upload-progress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <p class="progress-text">Uploading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스캔 모달 -->
+    <div id="scanModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📁 Scan Directory</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="directoryInput">Directory Path:</label>
+                    <input type="text" id="directoryInput" placeholder="C:\Videos or /home/user/videos">
+                    <button id="startScanBtn" class="btn btn-primary">Start Scan</button>
+                </div>
+                <div id="scanProgress" class="scan-progress" style="display: none;">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Scanning directory...</p>
+                    </div>
+                </div>
+                <div id="scanResults" class="scan-results" style="display: none;">
+                    <h4>Scan Results:</h4>
+                    <div id="scanResultsContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 비디오 상세 모달 -->
+    <div id="videoModal" class="modal">
+        <div class="modal-content video-modal-content">
+            <div class="modal-header">
+                <h2 id="videoTitle">Video Title</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="video-player-container">
+                    <video id="videoPlayer" controls>
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="video-details">
+                    <div class="video-info">
+                        <p><strong>File:</strong> <span id="videoFilename"></span></p>
+                        <p><strong>Size:</strong> <span id="videoSize"></span></p>
+                        <p><strong>Duration:</strong> <span id="videoDuration"></span></p>
+                        <p><strong>Resolution:</strong> <span id="videoResolution"></span></p>
+                    </div>
+                    <div class="video-tags">
+                        <h4>Tags:</h4>
+                        <div id="videoTagsContainer" class="tags-container">
+                            <!-- 태그들이 여기에 표시됩니다 -->
+                        </div>
+                        <div class="add-tag-form">
+                            <input type="text" id="newVideoTagInput" placeholder="Add new tag...">
+                            <button id="addVideoTagBtn" class="btn btn-small">Add</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 새 태그 모달 -->
+    <div id="newTagModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏷️ Create New Tag</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="tagNameInput">Tag Name:</label>
+                    <input type="text" id="tagNameInput" placeholder="Enter tag name">
+                </div>
+                <div class="form-group">
+                    <label for="tagColorInput">Tag Color:</label>
+                    <input type="color" id="tagColorInput" value="#007bff">
+                </div>
+                <div class="form-actions">
+                    <button id="createTagBtn" class="btn btn-primary">Create Tag</button>
+                    <button class="btn btn-secondary close-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 썸네일 선택 모달 -->
+    <div id="thumbnailModal" class="modal">
+        <div class="modal-content thumbnail-modal-content">
+            <div class="modal-header">
+                <h2>🖼️ Choose Thumbnail</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="thumbnailLoadingSpinner" class="loading">
+                    <div class="spinner"></div>
+                    <p>Generating thumbnail options...</p>
+                </div>
+                
+                <div id="thumbnailGrid" class="thumbnail-grid" style="display: none;">
+                    <!-- 썸네일 옵션들이 여기에 동적으로 추가됩니다 -->
+                </div>
+                
+                <div class="thumbnail-actions" id="thumbnailActions" style="display: none;">
+                    <button id="saveThumbnailBtn" class="btn btn-primary" disabled>Save Selection</button>
+                    <button class="btn btn-secondary close-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Test Video</title>
+</head>
+<body>
+    <h2>Create Test Video for Upload</h2>
+    
+    <button id="createVideo">Create Test Video</button>
+    <canvas id="canvas" width="320" height="240" style="display: none;"></canvas>
+    <video id="preview" controls style="display: none; margin-top: 20px;"></video>
+    
+    <div id="status"></div>
+
+    <script>
+        document.getElementById('createVideo').addEventListener('click', async () => {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const status = document.getElementById('status');
+            const preview = document.getElementById('preview');
+            
+            status.textContent = 'Creating test video...';
+            
+            try {
+                // Canvas 스트림 생성
+                const stream = canvas.captureStream(30);
+                
+                // MediaRecorder로 비디오 녹화
+                const mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'video/webm'
+                });
+                
+                const chunks = [];
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        chunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    preview.src = url;
+                    preview.style.display = 'block';
+                    
+                    // 다운로드 링크 생성
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'test-video.webm';
+                    a.textContent = 'Download Test Video';
+                    a.style.display = 'block';
+                    a.style.marginTop = '10px';
+                    
+                    status.innerHTML = 'Test video created! ';
+                    status.appendChild(a);
+                };
+                
+                // 애니메이션으로 Canvas 그리기
+                let frame = 0;
+                const animate = () => {
+                    ctx.fillStyle = `hsl(${frame % 360}, 70%, 50%)`;
+                    ctx.fillRect(0, 0, 320, 240);
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.font = '24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Test Video', 160, 120);
+                    ctx.fillText(`Frame: ${frame}`, 160, 150);
+                    
+                    frame++;
+                    
+                    if (frame < 150) { // 5초 비디오 (30fps)
+                        requestAnimationFrame(animate);
+                    } else {
+                        mediaRecorder.stop();
+                    }
+                };
+                
+                mediaRecorder.start();
+                animate();
+                
+            } catch (error) {
+                status.textContent = 'Error creating video: ' + error.message;
+                console.error('Error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database files
+database/*.db
+database/*.db-journal
+
+# User uploaded content
+uploads/*
+!uploads/.gitkeep
+
+# Generated thumbnails
+thumbnails/*
+!thumbnails/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+
+# Claude AI assistant files
+.claude/
+
+# Documentation (if you want to exclude)
+docs/
+
+# Optional: exclude specific image formats in root
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.webp
+
+# But keep important project images
+!README_assets/
+!assets/
