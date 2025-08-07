@@ -1,3 +1,4 @@
+# AI 사용법 숙지를 위한 프로젝트
 # Video Server - Phase 1 MVP
 
 개인용 미디어 서버 (Netflix 스타일 UI + 태그 시스템)
