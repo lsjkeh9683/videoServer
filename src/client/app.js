@@ -183,9 +183,23 @@ function renderTags() {
 // ==================== Event Listeners ====================
 
 function setupEventListeners() {
-  // Search
-  searchInput.addEventListener('input', debounce(handleSearch, 300));
+  // Search - 버튼 클릭 방식으로 변경
   document.getElementById('searchBtn').addEventListener('click', handleSearch);
+  searchInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  });
+  
+  // 자동완성 기능
+  searchInput.addEventListener('input', debounce(handleAutoComplete, 300));
+  
+  // 자동완성 외부 클릭 시 숨김
+  document.addEventListener('click', (e) => {
+    if (!searchInput.parentElement.contains(e.target)) {
+      hideAutoComplete();
+    }
+  });
   
   // Upload
   document.getElementById('uploadBtn').addEventListener('click', () => openModal('uploadModal'));
@@ -281,6 +295,58 @@ function setupVideoTagHandlers() {
 }
 
 // ==================== Handler Functions ====================
+
+async function handleAutoComplete() {
+  const query = searchInput.value.trim();
+  if (!query || query.length < 2) {
+    hideAutoComplete();
+    return;
+  }
+  
+  try {
+    const response = await apiCall(`/search/autocomplete?q=${encodeURIComponent(query)}`);
+    showAutoComplete(response.suggestions || []);
+  } catch (error) {
+    console.error('Autocomplete error:', error);
+    hideAutoComplete();
+  }
+}
+
+function showAutoComplete(suggestions) {
+  let autoCompleteDiv = document.getElementById('autocomplete');
+  if (!autoCompleteDiv) {
+    autoCompleteDiv = document.createElement('div');
+    autoCompleteDiv.id = 'autocomplete';
+    autoCompleteDiv.className = 'autocomplete-dropdown';
+    searchInput.parentElement.appendChild(autoCompleteDiv);
+  }
+  
+  if (suggestions.length === 0) {
+    hideAutoComplete();
+    return;
+  }
+  
+  autoCompleteDiv.innerHTML = suggestions.map(suggestion => `
+    <div class="autocomplete-item" onclick="selectAutoComplete('${suggestion.replace(/'/g, "\\'")}')">
+      🎬 ${suggestion}
+    </div>
+  `).join('');
+  
+  autoCompleteDiv.style.display = 'block';
+}
+
+function hideAutoComplete() {
+  const autoCompleteDiv = document.getElementById('autocomplete');
+  if (autoCompleteDiv) {
+    autoCompleteDiv.style.display = 'none';
+  }
+}
+
+function selectAutoComplete(suggestion) {
+  searchInput.value = suggestion;
+  hideAutoComplete();
+  handleSearch();
+}
 
 async function handleSearch() {
   const query = searchInput.value.trim();

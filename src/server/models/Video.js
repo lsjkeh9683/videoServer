@@ -274,6 +274,137 @@ class Video {
   }
 
   /**
+   * 자동완성 제안 (향상된 제목 기반)
+   */
+  async getAutoCompleteSuggestions(query, limit = 10) {
+    return new Promise((resolve, reject) => {
+      const queryLower = query.toLowerCase();
+      
+      const searchQuery = `
+        SELECT DISTINCT title,
+          CASE 
+            WHEN LOWER(title) LIKE ? THEN 1      -- 시작 일치 (최우선)
+            WHEN LOWER(title) LIKE ? THEN 2      -- 단어 시작 일치
+            WHEN LOWER(title) LIKE ? THEN 3      -- 포함
+            WHEN LOWER(filename) LIKE ? THEN 4   -- 파일명 포함
+            ELSE 5
+          END AS priority
+        FROM videos 
+        WHERE 
+          LOWER(title) LIKE ? OR 
+          LOWER(filename) LIKE ? OR
+          LOWER(title) LIKE ? OR 
+          LOWER(filename) LIKE ?
+        ORDER BY priority ASC, title ASC
+        LIMIT ?
+      `;
+      
+      const startMatch = `${queryLower}%`;
+      const wordStartMatch = `% ${queryLower}%`;  
+      const containsMatch = `%${queryLower}%`;
+      
+      const params = [
+        // CASE 조건들
+        startMatch,      // 시작 일치
+        wordStartMatch,  // 단어 시작 일치
+        containsMatch,   // 제목 포함
+        containsMatch,   // 파일명 포함
+        // WHERE 조건들
+        startMatch,      // 제목 시작 일치
+        containsMatch,   // 파일명 포함
+        wordStartMatch,  // 제목 단어 시작
+        containsMatch,   // 제목 포함
+        limit
+      ];
+      
+      this.db.all(searchQuery, params, (err, rows) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        const suggestions = rows.map(row => row.title);
+        resolve(suggestions);
+      });
+    });
+  }
+
+  /**
+   * 향상된 제목 검색 (부분 문자열 매칭 개선)
+   */
+  async enhancedSearchByTitle(query) {
+    return new Promise((resolve, reject) => {
+      const queryLower = query.toLowerCase();
+      
+      // 여러 패턴으로 검색: 완전일치, 시작일치, 포함, 단어별 검색
+      const searchQuery = `
+        SELECT v.*,
+          GROUP_CONCAT(t.name) as tags,
+          GROUP_CONCAT(t.color) as tag_colors,
+          GROUP_CONCAT(t.id) as tag_ids,
+          CASE 
+            -- 완전 일치 (최고 점수)
+            WHEN LOWER(v.title) = ? OR LOWER(v.filename) = ? THEN 1
+            -- 시작 일치
+            WHEN LOWER(v.title) LIKE ? OR LOWER(v.filename) LIKE ? THEN 2
+            -- 포함 (기본)
+            WHEN LOWER(v.title) LIKE ? OR LOWER(v.filename) LIKE ? THEN 3
+            -- 단어 시작 일치 (공백 후)
+            WHEN LOWER(v.title) LIKE ? OR LOWER(v.filename) LIKE ? THEN 4
+            ELSE 5
+          END AS match_priority
+        FROM videos v
+        LEFT JOIN video_tags vt ON v.id = vt.video_id
+        LEFT JOIN tags t ON vt.tag_id = t.id
+        WHERE 
+          LOWER(v.title) LIKE ? OR 
+          LOWER(v.filename) LIKE ? OR
+          LOWER(v.title) LIKE ? OR 
+          LOWER(v.filename) LIKE ? OR
+          LOWER(v.title) LIKE ? OR 
+          LOWER(v.filename) LIKE ?
+        GROUP BY v.id
+        ORDER BY match_priority ASC, v.created_at DESC
+      `;
+      
+      // 검색 패턴들
+      const exactMatch = queryLower;
+      const startMatch = `${queryLower}%`;
+      const containsMatch = `%${queryLower}%`;
+      const wordStartMatch = `% ${queryLower}%`;
+      
+      const params = [
+        // CASE 문의 조건들
+        exactMatch, exactMatch,           // 완전 일치
+        startMatch, startMatch,           // 시작 일치
+        containsMatch, containsMatch,     // 포함
+        wordStartMatch, wordStartMatch,   // 단어 시작
+        // WHERE 절의 조건들
+        containsMatch, containsMatch,     // 기본 포함 검색
+        startMatch, startMatch,           // 시작 일치
+        wordStartMatch, wordStartMatch    // 단어 시작
+      ];
+      
+      this.db.all(searchQuery, params, (err, rows) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        const videos = rows.map(row => ({
+          ...row,
+          tags: row.tags ? row.tags.split(',') : [],
+          tag_colors: row.tag_colors ? row.tag_colors.split(',') : [],
+          tag_ids: row.tag_ids ? row.tag_ids.split(',').map(id => parseInt(id)) : [],
+          thumbnail_url: row.thumbnail_path ? `/thumbnails/${path.basename(row.thumbnail_path)}` : null
+        }));
+        
+        resolve(videos);
+      });
+    });
+  }
+
+  /**
    * 비디오에 태그 추가
    */
   async addTagToVideo(videoId, tagId) {

@@ -200,9 +200,9 @@ app.get('/api/videos/search', async (req, res) => {
       console.log(`🏷️  Single tag search requested: "${q}"`);
       results = await video.searchByTag(q);
     } else if (q) {
-      // 제목 검색
-      console.log(`📝 Title search requested: "${q}"`);
-      results = await video.searchByTitle(q);
+      // 제목 검색 - 향상된 검색 사용
+      console.log(`🔍 Enhanced title search requested: "${q}"`);
+      results = await video.enhancedSearchByTitle(q);
     } else {
       return res.status(400).json({ error: 'Search query or tags are required' });
     }
@@ -212,6 +212,30 @@ app.get('/api/videos/search', async (req, res) => {
   } catch (error) {
     console.error('Error searching videos:', error);
     res.status(500).json({ error: 'Failed to search videos' });
+  }
+});
+
+// 검색 자동완성
+app.get('/api/search/autocomplete', async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.length < 2) {
+      return res.json({ suggestions: [] });
+    }
+    
+    console.log(`🔍 Autocomplete requested for: "${q}"`);
+    
+    const video = new Video();
+    const suggestions = await video.getAutoCompleteSuggestions(q, 10);
+    await video.close();
+    
+    console.log(`💡 Found ${suggestions.length} suggestions`);
+    res.json({ suggestions });
+    
+  } catch (error) {
+    console.error('Error in autocomplete:', error);
+    res.status(500).json({ error: 'Failed to get suggestions' });
   }
 });
 
