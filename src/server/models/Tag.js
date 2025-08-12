@@ -9,7 +9,7 @@ class Tag {
   }
 
   /**
-   * 모든 태그 조회
+   * 모든 태그 조회 (계층적 구조 포함)
    */
   async getAllTags() {
     return new Promise((resolve, reject) => {
@@ -18,7 +18,7 @@ class Tag {
         FROM tags t
         LEFT JOIN video_tags vt ON t.id = vt.tag_id
         GROUP BY t.id
-        ORDER BY t.name ASC
+        ORDER BY t.level ASC, t.category ASC, t.name ASC
       `;
       
       this.db.all(query, (err, rows) => {
@@ -78,13 +78,13 @@ class Tag {
   }
 
   /**
-   * 새 태그 생성
+   * 새 태그 생성 (계층적 구조 지원)
    */
-  async createTag(name, color = '#007bff') {
+  async createTag(name, color = '#007bff', parentId = null, category = 'custom', level = 1) {
     return new Promise((resolve, reject) => {
-      console.log(`➕ Creating new tag: "${name}" with color ${color}`);
-      const query = 'INSERT INTO tags (name, color) VALUES (?, ?)';
-      this.db.run(query, [name, color], function(err) {
+      console.log(`➕ Creating new tag: "${name}" with color ${color}, parent: ${parentId}, category: ${category}, level: ${level}`);
+      const query = 'INSERT INTO tags (name, color, parent_id, category, level) VALUES (?, ?, ?, ?, ?)';
+      this.db.run(query, [name, color, parentId, category, level], function(err) {
         if (err) {
           // UNIQUE 제약 조건 위반 시 (이미 존재하는 태그)
           if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -103,12 +103,21 @@ class Tag {
   }
 
   /**
-   * 태그 업데이트
+   * 태그 업데이트 (계층적 구조 지원)
    */
-  async updateTag(id, name, color) {
+  async updateTag(id, name, color, category = null) {
     return new Promise((resolve, reject) => {
-      const query = 'UPDATE tags SET name = ?, color = ? WHERE id = ?';
-      this.db.run(query, [name, color, id], function(err) {
+      let query, params;
+      
+      if (category) {
+        query = 'UPDATE tags SET name = ?, color = ?, category = ? WHERE id = ?';
+        params = [name, color, category, id];
+      } else {
+        query = 'UPDATE tags SET name = ?, color = ? WHERE id = ?';
+        params = [name, color, id];
+      }
+      
+      this.db.run(query, params, function(err) {
         if (err) {
           reject(err);
           return;
@@ -269,6 +278,113 @@ class Tag {
           return;
         }
         resolve(this.changes);
+      });
+    });
+  }
+
+  /**
+   * 계층적 태그 구조 조회
+   */
+  async getHierarchicalTags() {
+    return new Promise((resolve, reject) => {
+      const query = `
+        SELECT t.*, COUNT(vt.video_id) as video_count,
+               p.name as parent_name, p.color as parent_color
+        FROM tags t
+        LEFT JOIN video_tags vt ON t.id = vt.tag_id
+        LEFT JOIN tags p ON t.parent_id = p.id
+        GROUP BY t.id
+        ORDER BY t.level ASC, t.category ASC, t.name ASC
+      `;
+      
+      this.db.all(query, (err, rows) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        // 계층적 구조로 변환
+        const hierarchy = this.buildTagHierarchy(rows);
+        resolve(hierarchy);
+      });
+    });
+  }
+
+  /**
+   * 태그 계층 구조 빌드
+   */
+  buildTagHierarchy(tags) {
+    const tagMap = new Map();
+    const rootTags = [];
+    
+    // 먼저 모든 태그를 맵에 저장
+    tags.forEach(tag => {
+      tag.children = [];
+      tagMap.set(tag.id, tag);
+    });
+    
+    // 부모-자식 관계 설정
+    tags.forEach(tag => {
+      if (tag.parent_id) {
+        const parent = tagMap.get(tag.parent_id);
+        if (parent) {
+          parent.children.push(tag);
+        }
+      } else {
+        rootTags.push(tag);
+      }
+    });
+    
+    return {
+      flat: tags,
+      hierarchical: rootTags
+    };
+  }
+
+  /**
+   * 카테고리별 태그 조회
+   */
+  async getTagsByCategory(category) {
+    return new Promise((resolve, reject) => {
+      const query = `
+        SELECT t.*, COUNT(vt.video_id) as video_count
+        FROM tags t
+        LEFT JOIN video_tags vt ON t.id = vt.tag_id
+        WHERE t.category = ?
+        GROUP BY t.id
+        ORDER BY t.name ASC
+      `;
+      
+      this.db.all(query, [category], (err, rows) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(rows);
+      });
+    });
+  }
+
+  /**
+   * 태그의 하위 태그들 조회
+   */
+  async getChildTags(parentId) {
+    return new Promise((resolve, reject) => {
+      const query = `
+        SELECT t.*, COUNT(vt.video_id) as video_count
+        FROM tags t
+        LEFT JOIN video_tags vt ON t.id = vt.tag_id
+        WHERE t.parent_id = ?
+        GROUP BY t.id
+        ORDER BY t.name ASC
+      `;
+      
+      this.db.all(query, [parentId], (err, rows) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        resolve(rows);
       });
     });
   }

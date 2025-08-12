@@ -437,6 +437,152 @@ class Video {
   }
 
   /**
+   * 고급 필터링으로 비디오 조회
+   */
+  async getFilteredVideos(filters) {
+    return new Promise((resolve, reject) => {
+      let baseQuery = `
+        SELECT 
+          v.*,
+          GROUP_CONCAT(t.name) as tags,
+          GROUP_CONCAT(t.color) as tag_colors,
+          GROUP_CONCAT(t.id) as tag_ids
+        FROM videos v
+        LEFT JOIN video_tags vt ON v.id = vt.video_id
+        LEFT JOIN tags t ON vt.tag_id = t.id
+      `;
+
+      const conditions = [];
+      const params = [];
+
+      // 태그 필터
+      if (filters.tags && filters.tags.length > 0) {
+        const tagPlaceholders = filters.tags.map(() => '?').join(',');
+        conditions.push(`v.id IN (
+          SELECT DISTINCT vt.video_id 
+          FROM video_tags vt 
+          JOIN tags t ON vt.tag_id = t.id 
+          WHERE t.name IN (${tagPlaceholders})
+          GROUP BY vt.video_id 
+          HAVING COUNT(DISTINCT t.name) = ?
+        )`);
+        params.push(...filters.tags, filters.tags.length);
+      }
+
+      // 해상도 필터
+      if (filters.resolution && filters.resolution.length > 0) {
+        const resolutionConditions = filters.resolution.map(res => {
+          switch (res) {
+            case 'sd': return 'v.height <= 480';
+            case 'hd': return 'v.height > 480 AND v.height <= 720';
+            case 'fullhd': return 'v.height > 720 AND v.height <= 1080';
+            case '2k': return 'v.height > 1080 AND v.height <= 1440';
+            case '4k': return 'v.height > 1440 AND v.height <= 2160';
+            default: return 'v.height > 2160';
+          }
+        });
+        conditions.push(`(${resolutionConditions.join(' OR ')})`);
+      }
+
+      // 비디오 길이 필터
+      if (filters.durationMin !== null || filters.durationMax !== null) {
+        if (filters.durationMin !== null && filters.durationMax !== null) {
+          conditions.push('v.duration BETWEEN ? AND ?');
+          params.push(filters.durationMin, filters.durationMax);
+        } else if (filters.durationMin !== null) {
+          conditions.push('v.duration >= ?');
+          params.push(filters.durationMin);
+        } else if (filters.durationMax !== null) {
+          conditions.push('v.duration <= ?');
+          params.push(filters.durationMax);
+        }
+      }
+
+      // 날짜 필터
+      if (filters.dateFilter) {
+        const now = new Date();
+        let dateCondition = '';
+
+        switch (filters.dateFilter) {
+          case 'today':
+            dateCondition = "DATE(v.created_at) = DATE('now')";
+            break;
+          case 'yesterday':
+            dateCondition = "DATE(v.created_at) = DATE('now', '-1 day')";
+            break;
+          case 'week':
+            dateCondition = "v.created_at >= DATE('now', '-7 days')";
+            break;
+          case 'month':
+            dateCondition = "v.created_at >= DATE('now', '-1 month')";
+            break;
+          case '3months':
+            dateCondition = "v.created_at >= DATE('now', '-3 months')";
+            break;
+          case 'custom':
+            if (filters.dateFrom && filters.dateTo) {
+              dateCondition = 'DATE(v.created_at) BETWEEN ? AND ?';
+              params.push(filters.dateFrom, filters.dateTo);
+            }
+            break;
+        }
+
+        if (dateCondition) {
+          conditions.push(dateCondition);
+        }
+      }
+
+      // WHERE 절 추가
+      if (conditions.length > 0) {
+        baseQuery += ' WHERE ' + conditions.join(' AND ');
+      }
+
+      // GROUP BY 및 ORDER BY 추가
+      baseQuery += ' GROUP BY v.id';
+      
+      const validSortColumns = ['created_at', 'title', 'file_size', 'duration'];
+      const sortBy = validSortColumns.includes(filters.sortBy) ? filters.sortBy : 'created_at';
+      const order = filters.order === 'asc' ? 'ASC' : 'DESC';
+      
+      baseQuery += ` ORDER BY v.${sortBy} ${order}`;
+
+      // 페이지네이션
+      if (filters.limit) {
+        baseQuery += ' LIMIT ?';
+        params.push(filters.limit);
+        
+        if (filters.page > 1) {
+          baseQuery += ' OFFSET ?';
+          params.push((filters.page - 1) * filters.limit);
+        }
+      }
+
+      console.log('🔍 Filter query:', baseQuery);
+      console.log('🔍 Filter params:', params);
+
+      this.db.all(baseQuery, params, (err, rows) => {
+        if (err) {
+          console.error('Filter query error:', err);
+          reject(err);
+          return;
+        }
+
+        // 태그 정보 파싱 및 썸네일 URL 생성
+        const videos = rows.map(row => ({
+          ...row,
+          tags: row.tags ? row.tags.split(',') : [],
+          tag_colors: row.tag_colors ? row.tag_colors.split(',') : [],
+          tag_ids: row.tag_ids ? row.tag_ids.split(',').map(id => parseInt(id)) : [],
+          thumbnail_url: row.thumbnail_path ? `/thumbnails/${path.basename(row.thumbnail_path)}` : null
+        }));
+
+        console.log(`🎯 Filter results: ${videos.length} videos found`);
+        resolve(videos);
+      });
+    });
+  }
+
+  /**
    * 데이터베이스 연결 종료
    */
   close() {

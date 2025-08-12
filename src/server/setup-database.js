@@ -29,13 +29,17 @@ db.serialize(() => {
     )
   `);
 
-  // 태그 테이블
+  // 태그 테이블 (계층적 구조 지원)
   db.run(`
     CREATE TABLE IF NOT EXISTS tags (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       color TEXT DEFAULT '#007bff',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      parent_id INTEGER,
+      category TEXT DEFAULT 'custom',
+      level INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (parent_id) REFERENCES tags (id) ON DELETE CASCADE
     )
   `);
 
@@ -73,21 +77,35 @@ db.serialize(() => {
 
   console.log('✅ Database tables created successfully!');
   
-  // 기본 태그 데이터 삽입
-  const defaultTags = [
-    { name: 'KOREA', color: '#dc3545' },
-    { name: 'JAPAN', color: '#28a745' },
-    { name: 'WESTERN', color: '#ffc107' },
-    { name: 'Animation', color: '#6f42c1' },
-    { name: 'Comedy', color: '#fd7e14' },
-    { name: 'Drama', color: '#20c997' },
-    { name: 'Action', color: '#e83e8c' },
-    { name: 'Horror', color: '#6c757d' }
+  // 기존 컬럼이 없는 경우 추가
+  db.run('ALTER TABLE tags ADD COLUMN parent_id INTEGER', () => {});
+  db.run('ALTER TABLE tags ADD COLUMN category TEXT DEFAULT "custom"', () => {});
+  db.run('ALTER TABLE tags ADD COLUMN level INTEGER DEFAULT 1', () => {});
+
+  // 계층적 태그 데이터 삽입
+  const hierarchicalTags = [
+    // Level 1: 지역/국가 태그
+    { name: 'KOREA', color: '#dc3545', parent_id: null, category: 'region', level: 1 },
+    { name: 'JAPAN', color: '#28a745', parent_id: null, category: 'region', level: 1 },
+    { name: 'WESTERN', color: '#ffc107', parent_id: null, category: 'region', level: 1 },
+    
+    // Level 1: 장르 카테고리
+    { name: 'Genre', color: '#6c757d', parent_id: null, category: 'meta', level: 1 },
+    
+    // Level 2: 세부 장르 (Genre의 하위)
+    { name: 'Animation', color: '#6f42c1', parent_id: null, category: 'genre', level: 2 },
+    { name: 'Comedy', color: '#fd7e14', parent_id: null, category: 'genre', level: 2 },
+    { name: 'Drama', color: '#20c997', parent_id: null, category: 'genre', level: 2 },
+    { name: 'Action', color: '#e83e8c', parent_id: null, category: 'genre', level: 2 },
+    { name: 'Horror', color: '#6c757d', parent_id: null, category: 'genre', level: 2 },
+    { name: 'Romance', color: '#ff6b6b', parent_id: null, category: 'genre', level: 2 },
+    { name: 'Thriller', color: '#4ecdc4', parent_id: null, category: 'genre', level: 2 },
+    { name: 'SF', color: '#45b7d1', parent_id: null, category: 'genre', level: 2 }
   ];
 
-  const stmt = db.prepare('INSERT OR IGNORE INTO tags (name, color) VALUES (?, ?)');
-  defaultTags.forEach(tag => {
-    stmt.run(tag.name, tag.color);
+  const stmt = db.prepare('INSERT OR IGNORE INTO tags (name, color, parent_id, category, level) VALUES (?, ?, ?, ?, ?)');
+  hierarchicalTags.forEach(tag => {
+    stmt.run(tag.name, tag.color, tag.parent_id, tag.category, tag.level);
   });
   stmt.finalize();
 

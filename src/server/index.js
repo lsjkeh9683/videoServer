@@ -239,6 +239,48 @@ app.get('/api/search/autocomplete', async (req, res) => {
   }
 });
 
+// 필터링된 비디오 조회 (반드시 :id 라우트보다 위에 있어야 함)
+app.get('/api/videos/filter', async (req, res) => {
+  try {
+    const {
+      tags,
+      resolution,
+      durationMin,
+      durationMax,
+      dateFilter,
+      dateFrom,
+      dateTo,
+      sortBy = 'created_at',
+      order = 'desc',
+      page = 1,
+      limit = 100
+    } = req.query;
+
+    console.log('🔍 Advanced filter request:', req.query);
+
+    const video = new Video();
+    const results = await video.getFilteredVideos({
+      tags: tags ? JSON.parse(tags) : [],
+      resolution: resolution ? JSON.parse(resolution) : [],
+      durationMin: durationMin ? parseInt(durationMin) : null,
+      durationMax: durationMax ? parseInt(durationMax) : null,
+      dateFilter,
+      dateFrom,
+      dateTo,
+      sortBy,
+      order,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
+
+    await video.close();
+    res.json(results);
+  } catch (error) {
+    console.error('Error filtering videos:', error);
+    res.status(500).json({ error: 'Failed to filter videos' });
+  }
+});
+
 // 특정 비디오 조회
 app.get('/api/videos/:id', async (req, res) => {
   try {
@@ -467,23 +509,97 @@ app.get('/api/tags', async (req, res) => {
   }
 });
 
-// 새 태그 생성
+// 새 태그 생성 (계층적 구조 지원)
 app.post('/api/tags', async (req, res) => {
   try {
-    const { name, color = '#007bff' } = req.body;
+    const { name, color = '#007bff', category = 'custom', parentId = null } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Tag name is required' });
+    }
+
+    // 레벨 결정 (부모가 있으면 레벨 2, 없으면 레벨 1)
+    const level = parentId ? 2 : 1;
+
+    const tag = new Tag();
+    const tagId = await tag.createTag(name, color, parentId, category, level);
+    await tag.close();
+    
+    res.json({ id: tagId, name, color, category, parentId, level });
+  } catch (error) {
+    console.error('Error creating tag:', error);
+    res.status(500).json({ error: 'Failed to create tag' });
+  }
+});
+
+// 태그 업데이트
+app.put('/api/tags/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, color, category } = req.body;
     
     if (!name) {
       return res.status(400).json({ error: 'Tag name is required' });
     }
 
     const tag = new Tag();
-    const tagId = await tag.createTag(name, color);
+    const updated = await tag.updateTag(id, name, color, category);
     await tag.close();
     
-    res.json({ id: tagId, name, color });
+    if (!updated) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+    res.json({ success: true, message: 'Tag updated successfully' });
   } catch (error) {
-    console.error('Error creating tag:', error);
-    res.status(500).json({ error: 'Failed to create tag' });
+    console.error('Error updating tag:', error);
+    res.status(500).json({ error: 'Failed to update tag' });
+  }
+});
+
+// 태그 삭제
+app.delete('/api/tags/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const tag = new Tag();
+    const deleted = await tag.deleteTag(id);
+    await tag.close();
+    
+    if (!deleted) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+
+    res.json({ success: true, message: 'Tag deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting tag:', error);
+    res.status(500).json({ error: 'Failed to delete tag' });
+  }
+});
+
+// 계층적 태그 구조 조회
+app.get('/api/tags/hierarchy', async (req, res) => {
+  try {
+    const tag = new Tag();
+    const hierarchy = await tag.getHierarchicalTags();
+    await tag.close();
+    res.json(hierarchy);
+  } catch (error) {
+    console.error('Error fetching tag hierarchy:', error);
+    res.status(500).json({ error: 'Failed to fetch tag hierarchy' });
+  }
+});
+
+// 카테고리별 태그 조회
+app.get('/api/tags/category/:category', async (req, res) => {
+  try {
+    const { category } = req.params;
+    const tag = new Tag();
+    const tags = await tag.getTagsByCategory(category);
+    await tag.close();
+    res.json(tags);
+  } catch (error) {
+    console.error('Error fetching tags by category:', error);
+    res.status(500).json({ error: 'Failed to fetch tags by category' });
   }
 });
 

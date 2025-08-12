@@ -25,22 +25,137 @@
     </header>
 
     <div class="container">
-        <!-- 태그 필터 -->
-        <div class="filter-section">
-            <div class="filter-header">
-                <h3>Filters</h3>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <small style="color: #aaa; font-size: 12px;">💡 Click multiple tags to combine filters</small>
-                    <button id="newTagBtn" class="btn btn-small">New Tag</button>
+        <!-- 필터 사이드바 토글 버튼 -->
+        <button id="toggleSidebarBtn" class="sidebar-toggle-btn">
+            <span id="sidebarToggleIcon">◀</span>
+            <span class="toggle-text">Filters</span>
+        </button>
+
+        <div class="content-wrapper">
+            <!-- 필터 사이드바 -->
+            <aside id="filterSidebar" class="filter-sidebar">
+                <div class="sidebar-header">
+                    <h3>Filters</h3>
+                    <button id="clearAllFiltersBtn" class="btn btn-small btn-secondary">Clear All</button>
+                </div>
+
+
+                <!-- 메타데이터 필터 섹션 -->
+                <div class="filter-section">
+                    <div class="filter-section-header">
+                        <h4>Resolution</h4>
+                    </div>
+                    <div class="filter-options" id="resolutionFilters">
+                        <label class="filter-checkbox">
+                            <input type="checkbox" value="sd" data-filter="resolution">
+                            <span class="checkmark"></span>
+                            SD (480p 이하)
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" value="hd" data-filter="resolution">
+                            <span class="checkmark"></span>
+                            HD (720p)
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" value="fullhd" data-filter="resolution">
+                            <span class="checkmark"></span>
+                            Full HD (1080p)
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" value="2k" data-filter="resolution">
+                            <span class="checkmark"></span>
+                            2K (1440p)
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" value="4k" data-filter="resolution">
+                            <span class="checkmark"></span>
+                            4K (2160p)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 비디오 길이 필터 섹션 -->
+                <div class="filter-section">
+                    <div class="filter-section-header">
+                        <h4>Video Length</h4>
+                    </div>
+                    <div class="filter-options">
+                        <!-- 프리셋 옵션 -->
+                        <div class="duration-presets" id="durationPresets">
+                            <button class="preset-btn" data-min="0" data-max="300">숏폼 (< 5분)</button>
+                            <button class="preset-btn" data-min="300" data-max="1800">짧은 영상 (5-30분)</button>
+                            <button class="preset-btn" data-min="1800" data-max="7200">중간 (30분-2시간)</button>
+                            <button class="preset-btn" data-min="7200" data-max="999999">장편 (> 2시간)</button>
+                        </div>
+                        
+                        <!-- 커스텀 범위 슬라이더 -->
+                        <div class="duration-slider">
+                            <label>Custom Range (Min - Max Duration):</label>
+                            <div class="dual-range-container">
+                                <div class="range-slider">
+                                    <input type="range" id="durationMin" min="0" max="14400" value="0" step="60" class="range-min">
+                                    <input type="range" id="durationMax" min="0" max="14400" value="14400" step="60" class="range-max">
+                                </div>
+                                <div class="range-labels">
+                                    <span class="range-label-min">최소: <span id="durationMinValue">0분</span></span>
+                                    <span class="range-label-max">최대: <span id="durationMaxValue">240분</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 추가 날짜 필터 섹션 -->
+                <div class="filter-section">
+                    <div class="filter-section-header">
+                        <h4>Date Added</h4>
+                    </div>
+                    <div class="filter-options">
+                        <select id="dateFilter" class="filter-select">
+                            <option value="">전체 기간</option>
+                            <option value="today">오늘</option>
+                            <option value="yesterday">어제</option>
+                            <option value="week">최근 일주일</option>
+                            <option value="month">최근 한 달</option>
+                            <option value="3months">최근 3개월</option>
+                            <option value="custom">사용자 지정</option>
+                        </select>
+                        
+                        <!-- 사용자 지정 날짜 -->
+                        <div id="customDateRange" class="custom-date-range" style="display: none;">
+                            <label>From:</label>
+                            <input type="date" id="dateFrom" class="date-input">
+                            <label>To:</label>
+                            <input type="date" id="dateTo" class="date-input">
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 메인 콘텐츠 영역 -->
+            <main class="main-content">
+            <!-- 태그 필터 섹션 (메인 영역) -->
+            <div class="main-filter-section">
+                <div class="main-filter-header">
+                    <h3>Tags</h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="newTagBtn" class="btn btn-small">New Tag</button>
+                        <button id="toggleTagCloudBtn" class="btn btn-small">Toggle View</button>
+                        <button id="manageTagsBtn" class="btn btn-small">Manage Tags</button>
+                    </div>
+                </div>
+                
+                <!-- 기본 태그 리스트 -->
+                <div id="tagList" class="tag-list">
+                    <!-- 태그들이 여기에 동적으로 추가됩니다 -->
+                </div>
+                
+                <!-- 태그 클라우드 -->
+                <div id="tagCloud" class="tag-cloud" style="display: none;">
+                    <!-- 태그 클라우드가 여기에 동적으로 추가됩니다 -->
                 </div>
             </div>
-            <div id="tagList" class="tag-list">
-                <!-- 태그들이 여기에 동적으로 추가됩니다 -->
-            </div>
-        </div>
 
-        <!-- 비디오 그리드 -->
-        <main class="main-content">
             <div class="content-header">
                 <h2 id="videosTitle">All Videos</h2>
                 <div class="view-controls">
@@ -62,7 +177,8 @@
                 <h3>No videos found</h3>
                 <p>Upload some videos or scan a directory to get started!</p>
             </div>
-        </main>
+            </main>
+        </div>
     </div>
 
     <!-- 모달들 -->
@@ -286,6 +402,86 @@
                 <div class="thumbnail-actions" id="thumbnailActions" style="display: none;">
                     <button id="saveThumbnailBtn" class="btn btn-primary" disabled>Save Selection</button>
                     <button class="btn btn-secondary close-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 태그 관리 모달 -->
+    <div id="tagManagerModal" class="modal">
+        <div class="modal-content tag-manager-modal">
+            <div class="modal-header">
+                <h2>🏷️ Tag Manager</h2>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- 태그 통계 -->
+                <div class="tag-stats">
+                    <h3>Tag Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Tags:</span>
+                            <span class="stat-value" id="totalTagsCount">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Region Tags:</span>
+                            <span class="stat-value" id="regionTagsCount">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Genre Tags:</span>
+                            <span class="stat-value" id="genreTagsCount">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Custom Tags:</span>
+                            <span class="stat-value" id="customTagsCount">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 태그 목록 및 편집 -->
+                <div class="tag-editor">
+                    <h3>Manage Tags</h3>
+                    <div class="tag-editor-controls">
+                        <div class="form-group">
+                            <label for="tagCategoryFilter">Filter by Category:</label>
+                            <select id="tagCategoryFilter">
+                                <option value="all">All Categories</option>
+                                <option value="region">Region</option>
+                                <option value="genre">Genre</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <button id="addNewTagBtn" class="btn btn-primary">Add New Tag</button>
+                    </div>
+                    
+                    <div id="tagManagerList" class="tag-manager-list">
+                        <!-- 태그 편집 리스트가 여기에 표시됩니다 -->
+                    </div>
+                </div>
+                
+                <!-- 태그 생성/편집 폼 -->
+                <div id="tagEditForm" class="tag-edit-form" style="display: none;">
+                    <h4 id="tagEditFormTitle">Add New Tag</h4>
+                    <div class="form-group">
+                        <label for="editTagName">Tag Name:</label>
+                        <input type="text" id="editTagName" placeholder="Enter tag name">
+                    </div>
+                    <div class="form-group">
+                        <label for="editTagColor">Tag Color:</label>
+                        <input type="color" id="editTagColor" value="#007bff">
+                    </div>
+                    <div class="form-group">
+                        <label for="editTagCategory">Category:</label>
+                        <select id="editTagCategory">
+                            <option value="custom">Custom</option>
+                            <option value="region">Region</option>
+                            <option value="genre">Genre</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button id="saveTagBtn" class="btn btn-primary">Save Tag</button>
+                        <button id="cancelTagEditBtn" class="btn btn-secondary">Cancel</button>
+                    </div>
                 </div>
             </div>
         </div>
